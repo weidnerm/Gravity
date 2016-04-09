@@ -168,6 +168,7 @@ public class Gravity extends Activity {
 	public int mDisplayMode = DISPLAY_MODE_2D;
 	public double mFocalPointDistanceMain3DAxis = 1600;  // distance in display pixels to the observer
 	public double mFocalPointDistance3DEyeSeparation = mFocalPointDistanceMain3DAxis/10;
+	public int mIncludeGreenColor = 1;  // allows green to be excluded for displays that bleed green into red.
     
 	/** Called when the activity is first created. */
 	@Override
@@ -265,7 +266,14 @@ public class Gravity extends Activity {
 			mLeft3DPaint.setColor(0xffff0000);
 
 			mRight3DPaint = new Paint();
-			mRight3DPaint.setColor(0xff00ffff);
+			if ( mIncludeGreenColor == 1 )
+			{
+				mRight3DPaint.setColor(0xff00ffff);
+			}
+			else
+			{
+				mRight3DPaint.setColor(0xff0000ff);
+			}
 			
 			// set up paint for the dashed line drawn to plane of ecliptic
 			mLeft3DShadowPaint = new Paint();
@@ -275,7 +283,14 @@ public class Gravity extends Activity {
 			mLeft3DShadowPaint.setStrokeWidth(1);
 
 			mRight3DShadowPaint = new Paint();
-			mRight3DShadowPaint.setColor(0xff008080);
+			if ( mIncludeGreenColor == 1 )
+			{
+				mRight3DShadowPaint.setColor(0xff008080);
+			}
+			else
+			{
+				mRight3DShadowPaint.setColor(0xff000080);
+			}
 			dashPath = new DashPathEffect(new float[] { 2, 2 }, 1);
 			mRight3DShadowPaint.setPathEffect(dashPath);
 			mRight3DShadowPaint.setStrokeWidth(1);
@@ -749,7 +764,15 @@ public class Gravity extends Activity {
              		mTouchEventInProgress = 3; // signify its a angle adjust event in progress.
         			// handle angle adjust
              		mViewingAngle += (deltaY/mDisplayMetrics.heightPixels)*90;
+             
              		
+             		
+////             		mFocalPointDistanceMain3DAxis += (deltaY/mDisplayMetrics.heightPixels)*900;  // distance in display pixels to the observer
+//             		mFocalPointDistance3DEyeSeparation += (deltaY/mDisplayMetrics.heightPixels)*90;
+////             		mFocalPointDistance3DEyeSeparation += mFocalPointDistanceMain3DAxis/10;
+//             		mDebugText_3 = String.format("mFocalPointDistanceMain3DAxis=%.1f ",mFocalPointDistanceMain3DAxis );
+//             		mDebugText_4 = String.format("mFocalPointDistance3DEyeSeparation=%.1f ",mFocalPointDistance3DEyeSeparation );
+
              		mTouchLastHandledX = currentX;
              		mTouchLastHandledY = currentY;
         		
