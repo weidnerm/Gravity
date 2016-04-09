@@ -97,10 +97,23 @@ public class Gravity extends Activity {
 	 */
 	DisplayPoint myGravityObjectCoordHistory[][];
 	/**
+	 * History of display coordinates for all the gravity objects.
+	 */
+	DisplayPoint myGravityObjectCoordHistoryRight[][];
+	/**
+	 * History of display coordinates for all the gravity objects.
+	 */
+	DisplayPoint myGravityObjectCoordHistoryLeft[][];
+	/**
 	 * Array of points representing the point of the vertical projection onto the 
 	 * plane of the ecliptic.
 	 */
-	DisplayPoint myGravityObjectShadow[];
+	DisplayPoint myGravityObjectShadowRight[];
+	/**
+	 * Array of points representing the point of the vertical projection onto the 
+	 * plane of the ecliptic.
+	 */
+	DisplayPoint myGravityObjectShadowLeft[];
 	/**
 	 * Positions of the gravity objects in 3D space with history.
 	 */
@@ -150,7 +163,11 @@ public class Gravity extends Activity {
 	double mViewingAngle = 45; // degrees
 	int mTouchCount = 0;
 	public String mDebugText_1,mDebugText_2,mDebugText_3,mDebugText_4 = null;
-	
+	public final int DISPLAY_MODE_2D = 0;
+	public final int DISPLAY_MODE_3D = 1;
+	public int mDisplayMode = DISPLAY_MODE_2D;
+	public double mFocalPointDistanceMain3DAxis = 1600;  // distance in display pixels to the observer
+	public double mFocalPointDistance3DEyeSeparation = mFocalPointDistanceMain3DAxis/10;
     
 	/** Called when the activity is first created. */
 	@Override
@@ -201,6 +218,8 @@ public class Gravity extends Activity {
         private int mHandle1TouchEventsCount = 0;
         private int mAccelEventsCount = 0;
         private float mLastAccelerometerX,mLastAccelerometerY,mLastAccelerometerZ = 10000; // some invalid value
+        private Paint mLeft3DPaint,mRight3DPaint;
+		private Paint mLeft3DShadowPaint,mRight3DShadowPaint;
         
  
 		/**
@@ -241,12 +260,29 @@ public class Gravity extends Activity {
 
 			mElapsedTimePaint = new Paint();
 			mElapsedTimePaint.setColor(Color.YELLOW);
+
+			mLeft3DPaint = new Paint();
+			mLeft3DPaint.setColor(0xffff0000);
+
+			mRight3DPaint = new Paint();
+			mRight3DPaint.setColor(0xff00ffff);
 			
 			// set up paint for the dashed line drawn to plane of ecliptic
+			mLeft3DShadowPaint = new Paint();
+			mLeft3DShadowPaint.setColor(0xff800000);
+			DashPathEffect dashPath = new DashPathEffect(new float[] { 2, 2 }, 1);
+			mLeft3DShadowPaint.setPathEffect(dashPath);
+			mLeft3DShadowPaint.setStrokeWidth(1);
+
+			mRight3DShadowPaint = new Paint();
+			mRight3DShadowPaint.setColor(0xff008080);
+			dashPath = new DashPathEffect(new float[] { 2, 2 }, 1);
+			mRight3DShadowPaint.setPathEffect(dashPath);
+			mRight3DShadowPaint.setStrokeWidth(1);
+
 			mShadowPaint = new Paint();
 			mShadowPaint.setColor(Color.DKGRAY);
-			DashPathEffect dashPath = new DashPathEffect(new float[] { 2, 2 },
-					1);
+			dashPath = new DashPathEffect(new float[] { 2, 2 }, 1);
 			mShadowPaint.setPathEffect(dashPath);
 			mShadowPaint.setStrokeWidth(1);
 
@@ -280,75 +316,90 @@ public class Gravity extends Activity {
 			mDisplayOriginOffset.x = mDisplayMetrics.widthPixels / 2;
 			mDisplayOriginOffset.y = mDisplayMetrics.heightPixels / 2;
 
-//			final int extremeLeft = mDisplayOriginOffset.x -mDisplayMetrics.widthPixels;  
-//			final int extremeRight = mDisplayOriginOffset.x + mDisplayMetrics.widthPixels;
-//			final int extremeTop = mDisplayOriginOffset.y -mDisplayMetrics.heightPixels;  
-//			final int extremeBottom = mDisplayOriginOffset.y + mDisplayMetrics.heightPixels;
+			// set up some limits (they are past the actual display edges. just for sanity)
+			// should height/widths be swapped?
 			final int extremeLeft = mDisplayOriginOffset.x -mDisplayMetrics.heightPixels;  
 			final int extremeRight = mDisplayOriginOffset.x + mDisplayMetrics.heightPixels;
 			final int extremeTop = mDisplayOriginOffset.y -mDisplayMetrics.widthPixels;  
 			final int extremeBottom = mDisplayOriginOffset.y + mDisplayMetrics.widthPixels;
-
-			if (mCenterObjectIndex != -1) 
-			{
-				mDisplayOriginOffset.x -= myGravityObjectCoordHistory[mCenterObjectIndex][0].x;
-				mDisplayOriginOffset.y -= myGravityObjectCoordHistory[mCenterObjectIndex][0].y;
-			}
 
 			int objectIndex;
 
 			// for(objectIndex=0 ; objectIndex<numObjects ; objectIndex++)
 			for (objectIndex = mNumGravityObjects - 1; objectIndex >= 0; objectIndex--) 
 			{
+								
+				float objectX = mDisplayOriginOffset.x + myGravityObjectCoordHistoryLeft[objectIndex][0].x;
+				float objectXRightEye = mDisplayOriginOffset.x + myGravityObjectCoordHistoryRight[objectIndex][0].x;
+				float objectY = mDisplayOriginOffset.y + myGravityObjectCoordHistoryLeft[objectIndex][0].y;
 				
-				float objectX = mDisplayOriginOffset.x + myGravityObjectCoordHistory[objectIndex][0].x;
-				float objectY = mDisplayOriginOffset.y + myGravityObjectCoordHistory[objectIndex][0].y;
-				
-				if ( ( extremeLeft < objectY ) &&
+				if (    ( extremeLeft < objectY ) &&
 						( objectY < extremeRight ) &&
 						( extremeTop < objectX ) &&
 						( objectX < extremeBottom ) )        // only try to draw objects that are close to being on the screen.
 				{
 					// Draw the textual name of the object.
-					canvas.drawText(myGravityObjectNames[objectIndex],objectX + 2, objectY - 2, mPlanetPaint);
+					canvas.drawText(myGravityObjectNames[objectIndex],objectX + 2, objectY - 2, mLeft3DPaint);
+					// Draw the textual name of the object.
+					canvas.drawText(myGravityObjectNames[objectIndex],objectXRightEye + 2, objectY - 2, mRight3DPaint);
 	
+//					if ( objectIndex == 1)
+//					{
+//						mDebugText_3 = String.format("objectX=%.1f objectY=%.1f objectXRightEye=%.1f ", (float)objectX,(float)objectY,(float)objectXRightEye);
+//					}
+					
+					final int planetRadius = 2;
 					// Draw the Planet
-					mPlanetRect.left = objectX - 2;
-					mPlanetRect.top = objectY - 2;
-					mPlanetRect.right = objectX + 2;
-					mPlanetRect.bottom = objectY + 2;
-					canvas.drawOval(mPlanetRect, mPlanetPaint);
+					mPlanetRect.left = objectX - planetRadius;
+					mPlanetRect.top = objectY - planetRadius;
+					mPlanetRect.right = objectX + planetRadius;
+					mPlanetRect.bottom = objectY + planetRadius;
+					canvas.drawOval(mPlanetRect, mLeft3DPaint);
+					// Draw the Planet
+					mPlanetRect.left = objectXRightEye - planetRadius;
+					mPlanetRect.top = objectY - planetRadius;
+					mPlanetRect.right = objectXRightEye + planetRadius;
+					mPlanetRect.bottom = objectY + planetRadius;
+					canvas.drawOval(mPlanetRect, mRight3DPaint);
 	
 					// Draw the history "tail"
 					if ( myGravityObjectCoordHistoryDepth >= 2 )
 					{
 						for(int histIndex=0; histIndex<myGravityObjectCoordHistoryDepth-1 ; histIndex++)
 						{
-							canvas.drawLine(mDisplayOriginOffset.x + myGravityObjectCoordHistory[objectIndex][histIndex].x,
-								            mDisplayOriginOffset.y + myGravityObjectCoordHistory[objectIndex][histIndex].y,
-								            mDisplayOriginOffset.x + myGravityObjectCoordHistory[objectIndex][histIndex+1].x,
-								            mDisplayOriginOffset.y + myGravityObjectCoordHistory[objectIndex][histIndex+1].y,
-								            mPlanetPaint);
+							canvas.drawLine(mDisplayOriginOffset.x + myGravityObjectCoordHistoryLeft[objectIndex][histIndex].x,
+						            mDisplayOriginOffset.y + myGravityObjectCoordHistoryLeft[objectIndex][histIndex].y,
+						            mDisplayOriginOffset.x + myGravityObjectCoordHistoryLeft[objectIndex][histIndex+1].x,
+						            mDisplayOriginOffset.y + myGravityObjectCoordHistoryLeft[objectIndex][histIndex+1].y,
+						            mLeft3DPaint);
+							canvas.drawLine(mDisplayOriginOffset.x + myGravityObjectCoordHistoryRight[objectIndex][histIndex].x,
+						            mDisplayOriginOffset.y + myGravityObjectCoordHistoryRight[objectIndex][histIndex].y,
+						            mDisplayOriginOffset.x + myGravityObjectCoordHistoryRight[objectIndex][histIndex+1].x,
+						            mDisplayOriginOffset.y + myGravityObjectCoordHistoryRight[objectIndex][histIndex+1].y,
+						            mRight3DPaint);
+							
+							
 						}
 					}
 	
 					// Draw the line to the shadow position.
 					{
-						float shadowX = mDisplayOriginOffset.x + myGravityObjectShadow[objectIndex].x;
-						float shadowY = mDisplayOriginOffset.y + myGravityObjectShadow[objectIndex].y;
+						float shadowX = mDisplayOriginOffset.x + myGravityObjectShadowLeft[objectIndex].x;
+						float shadowY = mDisplayOriginOffset.y + myGravityObjectShadowLeft[objectIndex].y;
 						
-						if (shadowX > extremeBottom )
-						{
-							shadowX = extremeBottom;
-						}
-						else if (shadowX < extremeTop)
-						{
-							shadowX = extremeTop;
-						}
+						if      (shadowX > extremeBottom ) { shadowX = extremeBottom; }
+						else if (shadowX < extremeTop)     { shadowX = extremeTop; }
 						
-						canvas.drawLine(shadowX,shadowY,
-								objectX, objectY,
-								mShadowPaint);
+						canvas.drawLine(shadowX,shadowY, objectX, objectY, mLeft3DShadowPaint);
+					}
+					{
+						float shadowX = mDisplayOriginOffset.x + myGravityObjectShadowRight[objectIndex].x;
+						float shadowY = mDisplayOriginOffset.y + myGravityObjectShadowRight[objectIndex].y;
+						
+						if      (shadowX > extremeBottom ) { shadowX = extremeBottom; }
+						else if (shadowX < extremeTop)     { shadowX = extremeTop; }
+						
+						canvas.drawLine(shadowX,shadowY, objectXRightEye, objectY, mRight3DShadowPaint);
 					}
 				}
 
@@ -516,7 +567,7 @@ public class Gravity extends Activity {
                 ( mLastAccelerometerY != mAccelerometerY) ||
             	( mLastAccelerometerZ != mAccelerometerZ) )
             {
-            	mViewingAngle = Math.toDegrees( Math.atan2(mAccelerometerY,mAccelerometerZ) );
+            	mViewingAngle = 90 - Math.toDegrees( Math.atan2(mAccelerometerY,mAccelerometerZ) ) ;
                 mAccelEventsCount += 1;
 //         		mDebugText_4 = String.format("mTouchEventInProgress=%d  mHandle1TouchEventsCount=%d mAccelEventsCount=%d",mTouchEventInProgress, mHandle1TouchEventsCount, mAccelEventsCount);
             }
@@ -561,12 +612,21 @@ public class Gravity extends Activity {
                      break;
                 case MotionEvent.ACTION_UP:
                     mOldDisplayScale = 1;
-                	if ( ( Math.abs(mTouchX-x) < CLICK_DISTANCE_PIXELS ) &&
+                	if ( ( Math.abs(x) < 2*CLICK_DISTANCE_PIXELS ) &&
+                			( Math.abs(y) < 2*CLICK_DISTANCE_PIXELS ) )
+                 	{
+                		mDisplayMode = mDisplayMode==DISPLAY_MODE_2D ? DISPLAY_MODE_3D : DISPLAY_MODE_2D;// We have tap of the 2d/3d button.
+                 	}
+                	else if ( ( Math.abs(mTouchX-x) < CLICK_DISTANCE_PIXELS ) &&
                 			( Math.abs(mTouchY-y) < CLICK_DISTANCE_PIXELS ) )
                  	{
                 		// We have a release that was near by a press.  its a non-slide tap.
                 		handleNewOriginClick(mTouchX,mTouchY);
                 	}
+                	
+                	
+                	
+                	
 //                	else if ( (mTouchX-x) > 50  )
 //                	{
 //                		mDisplayScale *= 1.5;
@@ -762,10 +822,10 @@ public class Gravity extends Activity {
         	mCenterObjectIndex = -1;
         	for(index=0 ; index<mNumGravityObjects ; index++)
         	{
-                if ( ( mDisplayOriginOffset.x+myGravityObjectCoordHistory[index][0].x > xPos-CLICK_DISTANCE_PIXELS ) &&
-        			 ( mDisplayOriginOffset.x+myGravityObjectCoordHistory[index][0].x < xPos+CLICK_DISTANCE_PIXELS ) &&
-        			 ( mDisplayOriginOffset.y+myGravityObjectCoordHistory[index][0].y > yPos-CLICK_DISTANCE_PIXELS ) &&
-        			 ( mDisplayOriginOffset.y+myGravityObjectCoordHistory[index][0].y < yPos+CLICK_DISTANCE_PIXELS ) )
+                if ( ( mDisplayOriginOffset.x+myGravityObjectCoordHistoryLeft[index][0].x > xPos-CLICK_DISTANCE_PIXELS ) &&
+        			 ( mDisplayOriginOffset.x+myGravityObjectCoordHistoryLeft[index][0].x < xPos+CLICK_DISTANCE_PIXELS ) &&
+        			 ( mDisplayOriginOffset.y+myGravityObjectCoordHistoryLeft[index][0].y > yPos-CLICK_DISTANCE_PIXELS ) &&
+        			 ( mDisplayOriginOffset.y+myGravityObjectCoordHistoryLeft[index][0].y < yPos+CLICK_DISTANCE_PIXELS ) )
         		{
         			// We're within the click range.  find the first object in the click range.
                 	mCenterObjectIndex = index;
@@ -790,18 +850,25 @@ public class Gravity extends Activity {
 
 		// Allocate the pointers to the objects.
 		myGravityObjectCoordHistory = new DisplayPoint[mNumGravityObjects][MAX_OBJECT_HISTORY];
-		myGravityObjectShadow = new DisplayPoint[mNumGravityObjects];
+		myGravityObjectCoordHistoryLeft = new DisplayPoint[mNumGravityObjects][MAX_OBJECT_HISTORY];
+		myGravityObjectCoordHistoryRight = new DisplayPoint[mNumGravityObjects][MAX_OBJECT_HISTORY];
+		
+		myGravityObjectShadowLeft = new DisplayPoint[mNumGravityObjects];
+		myGravityObjectShadowRight = new DisplayPoint[mNumGravityObjects];
 		myGravityObjectVectorHistory = new VectorPoint[mNumGravityObjects][MAX_OBJECT_HISTORY];
 		myGravityObjectNames = new String[mNumGravityObjects];
 
 		// Allocate the objects.
 		for (int objectIndex = 0; objectIndex < mNumGravityObjects; objectIndex++) {
-			myGravityObjectShadow[objectIndex] = new DisplayPoint();
+			myGravityObjectShadowLeft[objectIndex] = new DisplayPoint();
+			myGravityObjectShadowRight[objectIndex] = new DisplayPoint();
 			myGravityObjectNames[objectIndex] = getGravityObjectName(objectIndex);
 
 			for (int historyIndex = 0; historyIndex < MAX_OBJECT_HISTORY; historyIndex++) {
 				myGravityObjectCoordHistory[objectIndex][historyIndex] = new DisplayPoint();
 				myGravityObjectVectorHistory[objectIndex][historyIndex] = new VectorPoint();
+				myGravityObjectCoordHistoryLeft[objectIndex][historyIndex] = new DisplayPoint();
+				myGravityObjectCoordHistoryRight[objectIndex][historyIndex] = new DisplayPoint();
 			}
 		}
 
@@ -844,40 +911,126 @@ public class Gravity extends Activity {
 	 */
 	private void computeNewDisplayCoords() {
 		int index;
-		double xTemp;
-		double yTemp;
+		double xRot,yRot,zRot;
+		double xTran,yTran,zTran;
+		double xTempLeft,xTempRight,yTemp;
 		int tempIndex;
-		double sinOfAngle = Math.sin(Math.toRadians(mViewingAngle));
-		double cosOfAngle = Math.cos(Math.toRadians(mViewingAngle));
+		double sinOfAngle = Math.sin(Math.toRadians(-mViewingAngle));
+		double cosOfAngle = Math.cos(Math.toRadians(-mViewingAngle));
+		VectorPoint currentVectorPoint;
+		double eyeSeparation;
 
-		for (index = 0; index < mNumGravityObjects; index++) {
+		if ( mDisplayMode == DISPLAY_MODE_2D)
+		{
+			eyeSeparation = 0;
+		}
+		else
+		{
+			eyeSeparation = mFocalPointDistance3DEyeSeparation;
+		}
+			
+//			for (index = 0; index < mNumGravityObjects; index++) {
+//				// Save the historical values.
+//				for (tempIndex = 0; tempIndex < myGravityObjectCoordHistoryDepth; tempIndex++) {
+//					// Compute the projected ccordinates based on the viewing angle.
+//					xRot = myGravityObjectVectorHistory[index][tempIndex].x;
+//					yRot = myGravityObjectVectorHistory[index][tempIndex].y * cosOfAngle
+//							- myGravityObjectVectorHistory[index][tempIndex].z * sinOfAngle;
+//	
+//					// Scale it down so that it fits our display.
+//					xRot /= mDisplayScale; // One AU is about 149 pixels.
+//					yRot /= -mDisplayScale; // One AU is about 149 pixels.
+//	
+//					myGravityObjectCoordHistory[index][tempIndex].x = (int) xRot;
+//					myGravityObjectCoordHistory[index][tempIndex].y = (int) yRot;
+//				}
+//	
+//				xRot = myGravityObjectVectorHistory[index][0].x;
+//				yRot = myGravityObjectVectorHistory[index][0].y * cosOfAngle;
+//	
+//				xRot /= mDisplayScale; // One AU is about 149 pixels.
+//				yRot /= -mDisplayScale; // One AU is about 149 pixels.
+//	
+//				myGravityObjectShadow[index].x = (int) xRot;
+//				myGravityObjectShadow[index].y = (int) yRot;
+//			}
+		
+		for (index = 0; index < mNumGravityObjects; index++) 
+		{
 			// Save the historical values.
-			for (tempIndex = 0; tempIndex < myGravityObjectCoordHistoryDepth; tempIndex++) {
+			for (tempIndex = 0; tempIndex < myGravityObjectCoordHistoryDepth; tempIndex++) 
+			{
 				// Compute the projected ccordinates based on the viewing angle.
-				xTemp = myGravityObjectVectorHistory[index][tempIndex].x;
-				yTemp = myGravityObjectVectorHistory[index][tempIndex].y
-						* cosOfAngle
-						- myGravityObjectVectorHistory[index][tempIndex].z
-						* sinOfAngle;
 
-				// Scale it down so that it fits our display.
-				xTemp /= mDisplayScale; // One AU is about 149 pixels.
-				yTemp /= -mDisplayScale; // One AU is about 149 pixels.
+				// Set up the initial points.  may slide them to new center later.
+				xTran = myGravityObjectVectorHistory[index][tempIndex].x;
+				yTran = myGravityObjectVectorHistory[index][tempIndex].y;
+				zTran = myGravityObjectVectorHistory[index][tempIndex].z;
+				
+				// Translate it so the origin is one of the objects.
+				if (mCenterObjectIndex != -1) 
+				{
+					xTran -= myGravityObjectVectorHistory[mCenterObjectIndex][0].x;
+					yTran -= myGravityObjectVectorHistory[mCenterObjectIndex][0].y;
+					zTran -= myGravityObjectVectorHistory[mCenterObjectIndex][0].z;
+				}
+				
+				// Rotate the system about the x axis.
+				xRot = xTran;
+				yRot = yTran*cosOfAngle - zTran*sinOfAngle;
+				zRot = yTran*sinOfAngle	+ zTran*cosOfAngle;
 
-				myGravityObjectCoordHistory[index][tempIndex].x = (int) xTemp;
-				myGravityObjectCoordHistory[index][tempIndex].y = (int) yTemp;
+				// Scale it down so that its in approximately display units instead of meters.
+				xRot /= mDisplayScale; // One AU is about 149 pixels.
+				yRot /= mDisplayScale; // One AU is about 149 pixels.
+				zRot /= mDisplayScale; // One AU is about 149 pixels.
+
+				// Do the stereo vision calculation.
+				yTemp = zRot*mFocalPointDistanceMain3DAxis/(mFocalPointDistanceMain3DAxis+yRot);
+				xTempLeft  = ((xRot+eyeSeparation)*mFocalPointDistanceMain3DAxis)/(yRot+mFocalPointDistanceMain3DAxis)-eyeSeparation;
+				xTempRight = ((xRot-eyeSeparation)*mFocalPointDistanceMain3DAxis)/(yRot+mFocalPointDistanceMain3DAxis)+eyeSeparation;
+				
+				myGravityObjectCoordHistoryRight[index][tempIndex].x = (int) xTempRight;
+				myGravityObjectCoordHistoryRight[index][tempIndex].y = (int) yTemp;
+				myGravityObjectCoordHistoryLeft[index][tempIndex].x = (int) xTempLeft;
+				myGravityObjectCoordHistoryLeft[index][tempIndex].y = (int) yTemp;
+
 			}
 
-			xTemp = myGravityObjectVectorHistory[index][0].x;
-			yTemp = myGravityObjectVectorHistory[index][0].y * cosOfAngle;
+			// Set up the initial points.  may slide them to new center later.
+			xTran = myGravityObjectVectorHistory[index][0].x;
+			yTran = myGravityObjectVectorHistory[index][0].y;
+			zTran = 0;
+			
+			// Translate it so the origin is one of the objects.
+			if (mCenterObjectIndex != -1) 
+			{
+				xTran -= myGravityObjectVectorHistory[mCenterObjectIndex][0].x;
+				yTran -= myGravityObjectVectorHistory[mCenterObjectIndex][0].y;
+				zTran -= myGravityObjectVectorHistory[mCenterObjectIndex][0].z;
+			}
+			
+			// Rotate the system about the x axis.
+			xRot = xTran;
+			yRot = yTran*cosOfAngle - zTran*sinOfAngle;
+			zRot = yTran*sinOfAngle	+ zTran*cosOfAngle;
 
-			xTemp /= mDisplayScale; // One AU is about 149 pixels.
-			yTemp /= -mDisplayScale; // One AU is about 149 pixels.
+			// Scale it down so that its in approximately display units instead of meters.
+			xRot /= mDisplayScale; // One AU is about 149 pixels.
+			yRot /= mDisplayScale; // One AU is about 149 pixels.
+			zRot /= mDisplayScale; // One AU is about 149 pixels.
 
-			myGravityObjectShadow[index].x = (int) xTemp;
-			myGravityObjectShadow[index].y = (int) yTemp;
-
+			// Do the stereo vision calculation.
+			yTemp = zRot*mFocalPointDistanceMain3DAxis/(mFocalPointDistanceMain3DAxis+yRot);
+			xTempLeft  = ((xRot+eyeSeparation)*mFocalPointDistanceMain3DAxis)/(yRot+mFocalPointDistanceMain3DAxis)-eyeSeparation;
+			xTempRight = ((xRot-eyeSeparation)*mFocalPointDistanceMain3DAxis)/(yRot+mFocalPointDistanceMain3DAxis)+eyeSeparation;
+			
+			myGravityObjectShadowRight[index].x = (int) xTempRight;
+			myGravityObjectShadowRight[index].y = (int) yTemp;
+			myGravityObjectShadowLeft[index].x = (int) xTempLeft;
+			myGravityObjectShadowLeft[index].y = (int) yTemp;
 		}
+			
 	}
 
 	/**
