@@ -128,7 +128,7 @@ public class Gravity extends Activity {
 	/**
 	 * Array of names of gravity objects.
 	 */
-	String myGravityObjectNames[];
+	public static String myGravityObjectNames[];
 	/**
 	 * Tracks the current number of history entries present in the arrays
 	 */
@@ -174,6 +174,7 @@ public class Gravity extends Activity {
 	public double mFocalPointDistance3DEyeSeparation = mFocalPointDistanceMain3DAxis/10;
 	public boolean mExcludeGreenColor = false;  // allows green to be excluded for displays that bleed green into red.
     public boolean mAccelEnabled = true;
+    public boolean m3dDisplay = false;
     
 	/** Called when the activity is first created. */
 	@Override
@@ -206,10 +207,21 @@ public class Gravity extends Activity {
         // pref menu item
         Intent prefsIntent = new Intent(getApplicationContext(),
                 GravityPreferencesActivity.class);
-
         MenuItem preferences = menu.findItem(R.id.settings);
         preferences.setIntent(prefsIntent);    	
-    	
+
+        // object list menu item
+        Intent objectListIntent = new Intent(getApplicationContext(),
+                GravityObjectListActivity.class);
+        MenuItem objectList = menu.findItem(R.id.viewlist);
+        objectList.setIntent(objectListIntent);    	
+
+        // object list menu item
+        Intent aboutIntent = new Intent(getApplicationContext(),
+                GravityAboutActivity.class);
+        MenuItem aboutMenu = menu.findItem(R.id.about);
+        aboutMenu.setIntent(aboutIntent);    	
+
     	return result;
     }
     
@@ -219,11 +231,11 @@ public class Gravity extends Activity {
         switch (item.getItemId()) {
 //            case R.id.settings:
 //            	return true;
-            case R.id.viewlist:
-                return true;
-            case R.id.about:
+//            case R.id.viewlist:
+//                return true;
+//            case R.id.about:
 //                showHelp();
-                return true;
+//                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -453,6 +465,8 @@ public class Gravity extends Activity {
 			computeNewPositions(mNumIterationsPerDisplayPoint,mComputationTimeInterval);
 		    // Fetch the calculated data.
 		    storeNewSetOfCoords();
+		    // Update user preferences.
+		    handlePreferences();
 		    // Calculate the new display coordinates of objects, trails, and shadows.
 		    computeNewDisplayCoords();
 
@@ -960,11 +974,9 @@ public class Gravity extends Activity {
 		VectorPoint currentVectorPoint;
 		double eyeSeparation;
 
-		boolean mode_3d = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("enable_3d", false)  ;
-		if ( mode_3d )
+		if ( m3dDisplay )
 		{
 			eyeSeparation = mFocalPointDistance3DEyeSeparation;
-			mExcludeGreenColor = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("no_green", false)  ;
 		}
 		else
 		{
@@ -972,7 +984,6 @@ public class Gravity extends Activity {
 			mExcludeGreenColor = false; // force cyan if not 3d.
 		}
 
-		mAccelEnabled = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("enable_accel_tilt", false)  ;
 				
 		for (index = 0; index < mNumGravityObjects; index++) 
 		{
@@ -1052,6 +1063,20 @@ public class Gravity extends Activity {
 			
 	}
 
+	/**
+	 * Fetches the application preferences for use.
+	 */
+	public void handlePreferences()
+	{
+		SharedPreferences mySharedPreferences;
+		mySharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+		
+		m3dDisplay          = mySharedPreferences.getBoolean("enable_3d", false);
+		mExcludeGreenColor  = mySharedPreferences.getBoolean("no_green", false);
+		mAccelEnabled       = mySharedPreferences.getBoolean("enable_accel_tilt", false);
+	}
+	
+	
 	/**
 	 * Class that represents a 3D vector in non-polar format using x,y,z.
 	 * 

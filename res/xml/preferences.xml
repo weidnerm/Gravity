@@ -3,7 +3,7 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
  
     <PreferenceCategory
-        android:title="3D Options"
+        android:title="@string/options_3d_title"
         android:key="3d_options">
          
         <CheckBoxPreference
@@ -23,7 +23,7 @@
     </PreferenceCategory>
  
     <PreferenceCategory
-        android:title="General Options"
+        android:title="@string/general_options_title"
         android:key="general_options">
  
         <CheckBoxPreference
