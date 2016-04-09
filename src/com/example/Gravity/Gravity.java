@@ -132,7 +132,7 @@ public class Gravity extends Activity {
 	 * computing new speed change based on acceleration, and distance
 	 * change based on speed.
 	 */
-	final public double COMPUTATION_TIME_INTERVAL = (1*60*60);
+	public double mComputationTimeInterval = (1*60*60);
 	/**
 	 * Number of seconds in a day.
 	 */
@@ -149,6 +149,8 @@ public class Gravity extends Activity {
     long mFirstOnDrawTimestamp = 0;
 	double mViewingAngle = 45; // degrees
 	int mTouchCount = 0;
+	public String mDebugText_1,mDebugText_2,mDebugText_3,mDebugText_4 = null;
+	
     
 	/** Called when the activity is first created. */
 	@Override
@@ -166,6 +168,7 @@ public class Gravity extends Activity {
 
 		// instantiate our simulation view and set it as the activity's content
 		mGravityView = new GravityView(this);
+//		mGravityView.setBottom(0);
 		setContentView(mGravityView);
 		mDisplayOriginOffset = new DisplayPoint();
 		
@@ -174,6 +177,10 @@ public class Gravity extends Activity {
 	
 	
 
+	/**
+	 * @author emw010
+	 *
+	 */
 	class GravityView extends View implements SensorEventListener {
 		private Sensor mAccelerometer = null;
 		private RectF mPlanetRect;
@@ -183,13 +190,18 @@ public class Gravity extends Activity {
 		private Paint mTimeScalePaint;
 		private Paint mAnglePaint;
 		private Paint mElapsedTimePaint;
-        private float mAccelerometerX;
-        private float mAccelerometerY;
-        private float mAccelerometerZ;
+        private float mAccelerometerX,mAccelerometerY,mAccelerometerZ;
         private float mTouchX;
         private float mTouchY;
+        private float mTouchLastHandledX;
+        private float mTouchLastHandledY;
         private double mOldDisplayScale = 1.000;
         final int CLICK_DISTANCE_PIXELS=20;
+        private int mTouchEventInProgress = 0;
+        private int mHandle1TouchEventsCount = 0;
+        private int mAccelEventsCount = 0;
+        private float mLastAccelerometerX,mLastAccelerometerY,mLastAccelerometerZ = 10000; // some invalid value
+        
  
 		/**
 		 * Custom view that is used to represent the gravity simulation graphical
@@ -206,8 +218,12 @@ public class Gravity extends Activity {
 			}
 
 			mDisplayMetrics = new DisplayMetrics();
-			getWindowManager().getDefaultDisplay().getMetrics(mDisplayMetrics);
-
+//			getWindowManager().getDefaultDisplay().getMetrics(mDisplayMetrics);
+////			mDisplayMetrics =getResources().getDisplayMetrics();
+			mDisplayMetrics.widthPixels = getWidth();
+			mDisplayMetrics.heightPixels = getHeight();
+			
+			
 			mPlanetRect = new RectF();
 
 			// set up paint for the planet object
@@ -258,6 +274,7 @@ public class Gravity extends Activity {
 			displayTheViewingAngle(canvas);
 			displayTheTimeScale(canvas);
 			displayElapsedTime(canvas);
+			displayDebugInformation(canvas);
 
 			// Retrieve the size of the drawing area
 			mDisplayOriginOffset.x = mDisplayMetrics.widthPixels / 2;
@@ -339,7 +356,7 @@ public class Gravity extends Activity {
 
 		   
 			// Calculate the new object positions.
-			computeNewPositions(mNumIterationsPerDisplayPoint,COMPUTATION_TIME_INTERVAL);
+			computeNewPositions(mNumIterationsPerDisplayPoint,mComputationTimeInterval);
 		    // Fetch the calculated data.
 		    storeNewSetOfCoords();
 		    // Calculate the new display coordinates of objects, trails, and shadows.
@@ -438,7 +455,7 @@ public class Gravity extends Activity {
 
 			if ( elapsedTime_msec != 0 )
 			{
-				tempVal = (double)mNumIterationsPerDisplayPoint*mOnDrawCount*COMPUTATION_TIME_INTERVAL/ONE_DAY_TIME_INTERVAL*1000/elapsedTime_msec;				
+				tempVal = (double)mNumIterationsPerDisplayPoint*mOnDrawCount*mComputationTimeInterval/ONE_DAY_TIME_INTERVAL*1000/elapsedTime_msec;				
 			}
 			else
 			{
@@ -449,9 +466,13 @@ public class Gravity extends Activity {
 
 			canvas.drawText(scaleText, (float)displayWidth-100,
 					(float)10, mTimeScalePaint);
+
+			scaleText = String.format("%2.2f hours/calc", mComputationTimeInterval/(60*60));
+
+			canvas.drawText(scaleText, (float)displayWidth-100,
+					(float)20, mTimeScalePaint);
 		}
 		
-        @Override
         public void onSensorChanged(SensorEvent event) {
             if (event.sensor.getType() != Sensor.TYPE_ACCELEROMETER)
                 return;
@@ -489,13 +510,25 @@ public class Gravity extends Activity {
                     break;
             }
             
-            mViewingAngle = Math.toDegrees( Math.atan2(mAccelerometerY,mAccelerometerZ) );
+//     		mDebugText_4 = String.format("mAccelerometerY=%.1f  mAccelerometerZ=%.1f mAccelEventsCount=%d",mAccelerometerY, mAccelerometerZ, mAccelEventsCount);
+            
+            if ( ( mLastAccelerometerX != mAccelerometerX) ||
+                ( mLastAccelerometerY != mAccelerometerY) ||
+            	( mLastAccelerometerZ != mAccelerometerZ) )
+            {
+            	mViewingAngle = Math.toDegrees( Math.atan2(mAccelerometerY,mAccelerometerZ) );
+                mAccelEventsCount += 1;
+//         		mDebugText_4 = String.format("mTouchEventInProgress=%d  mHandle1TouchEventsCount=%d mAccelEventsCount=%d",mTouchEventInProgress, mHandle1TouchEventsCount, mAccelEventsCount);
+            }
+
+     		mLastAccelerometerX = mAccelerometerX;
+            mLastAccelerometerY = mAccelerometerY;
+            mLastAccelerometerZ = mAccelerometerZ;
         }
 
         
         
         
-        @Override
         public void onAccuracyChanged(Sensor sensor, int accuracy) {
         }
 
@@ -510,31 +543,22 @@ public class Gravity extends Activity {
                     mTouchX = x;
                     mTouchY = y;
                     mOldDisplayScale = 1;
+                    mTouchLastHandledX = x;
+                    mTouchLastHandledY = y;
                     break;
                 case MotionEvent.ACTION_MOVE:
-                	double distance = getTwoTouchDistance(event);
-                	double newScale;
-                	distance = Math.floor(distance/10);  // scale it down a bit.
-                	if ( distance >= 2 )
-                	{
-                		newScale = Math.pow(1.1, distance);
-                
-	                	if ( mOldDisplayScale != 1 )
-	            		{
-	                		mDisplayScale = mDisplayScale*mOldDisplayScale/ newScale ;
-	                		
-	                		if (mDisplayScale > 1e+12)
-	                		{
-	                			mDisplayScale = 1e+12;
-	                		}
-	                		else if ( mDisplayScale < 1e+6 )
-	                		{
-	                			mDisplayScale = 1e+6;	                			
-	                		}
-	            		}
-	                	mOldDisplayScale = newScale;
-                	}
-                    break;
+                    final int pointerCount = event.getPointerCount();
+                    
+                    if ( pointerCount == 1)
+                    {
+                    	handle1TouchEvents(event);
+                    }
+                    else if ( pointerCount == 2)
+                    {
+                    	handle2TouchEvents(event);
+                    }
+
+                     break;
                 case MotionEvent.ACTION_UP:
                     mOldDisplayScale = 1;
                 	if ( ( Math.abs(mTouchX-x) < CLICK_DISTANCE_PIXELS ) &&
@@ -543,14 +567,16 @@ public class Gravity extends Activity {
                 		// We have a release that was near by a press.  its a non-slide tap.
                 		handleNewOriginClick(mTouchX,mTouchY);
                 	}
-                	else if ( (mTouchX-x) > 50  )
-                	{
-                		mDisplayScale *= 1.5;
-                	}
-                	else if ( (mTouchX-x) < -50  )
-                	{
-                		mDisplayScale /= 1.5;
-                	}
+//                	else if ( (mTouchX-x) > 50  )
+//                	{
+//                		mDisplayScale *= 1.5;
+//                	}
+//                	else if ( (mTouchX-x) < -50  )
+//                	{
+//                		mDisplayScale /= 1.5;
+//                	}
+                	mTouchEventInProgress = 0;
+//             		mDebugText_4 = String.format("mTouchEventInProgress=%d  mHandle1TouchEventsCount=%d",mTouchEventInProgress, mHandle1TouchEventsCount);
                     break;
             }
             
@@ -580,7 +606,150 @@ public class Gravity extends Activity {
             return distance;
         }
         
+        /**
+         * Handles a multi touch event involving 2 points.  Will do logarithmic zoom.
+         * 
+         * @param ev MotionEvent containing touch information
+         */
+        private void handle2TouchEvents(MotionEvent ev)
+        {
+            double distance = getTwoTouchDistance(ev);
+        	double newScale;
+         	distance = Math.floor(distance/10);  // scale it down a bit.
+         	if ( ( distance >= 2 ) &&
+         	   ((mTouchEventInProgress==1)||(mTouchEventInProgress==0)) )
+         	{
+         		mTouchEventInProgress = 1; // signify its a multi touch event in progress.
+         		
+         		newScale = Math.pow(1.1, distance);
+         
+             	if ( mOldDisplayScale != 1 )
+         		{
+             		mDisplayScale = mDisplayScale*mOldDisplayScale/ newScale ;
+             		
+             		if (mDisplayScale > 1e+12)
+             		{
+             			mDisplayScale = 1e+12;
+             		}
+             		else if ( mDisplayScale < 1e+6 )
+             		{
+             			mDisplayScale = 1e+6;	                			
+             		}
+         		}
+             	mOldDisplayScale = newScale;
+         	}
+        }
+                
+        /**
+         * Handles a single touch event involving 1 points.  Will do time scale adjust or logarithmic zoom
+         * 
+         * @param ev MotionEvent containing touch information
+         */
+        private void handle1TouchEvents(MotionEvent ev)
+        {
+        	float currentX = ev.getX(0);
+        	float currentY = ev.getY(0);        	
+        	float overallDeltaX = mTouchX - currentX;
+        	float overallDeltaY = mTouchY - currentY;
+        	float deltaX = mTouchLastHandledX - currentX;
+        	float deltaY = mTouchLastHandledY - currentY;
+        	
+        	mHandle1TouchEventsCount += 1;
+        	
+        	if ( ( ( Math.abs(overallDeltaY) > Math.abs(3*overallDeltaX) ) && // make sure the motion is mostly vertical 
+        		 ( Math.abs(overallDeltaY) > 2*CLICK_DISTANCE_PIXELS ) ) || // make sure its non-trivially vertical.
+        		 (mTouchEventInProgress==2) || (mTouchEventInProgress==3) ) // or if we are already in a touch mode.
+        	{
+        		if ( (( currentX < 2*mDisplayMetrics.widthPixels/5 ) && (mTouchEventInProgress==0) )||
+        				(mTouchEventInProgress==2) )
+        		{
+             		mTouchEventInProgress = 2; // signify its a time adjust event in progress.
+        			// handle time adjust
+             		
+             		
+                	double newScale;
+                 	newScale = Math.pow(1.1, deltaY/10 );
+                 	mComputationTimeInterval = mComputationTimeInterval* newScale ;
+                 	
+                 	if ( mComputationTimeInterval < 90)
+                 	{
+                 		mComputationTimeInterval = 90;
+                 	}
+                 	else if ( mComputationTimeInterval > 3600*2)
+                 	{
+                 		mComputationTimeInterval = 3600*2;
+                 	}
+             		
+             		mTouchLastHandledX = currentX;
+             		mTouchLastHandledY = currentY;
+        		}
+        		else if ( ( ( currentX > 3*mDisplayMetrics.widthPixels/5 ) && (mTouchEventInProgress==0))|| // if in the right 40% of screen.
+                	   (mTouchEventInProgress==3) )
+        		{
+             		mTouchEventInProgress = 3; // signify its a angle adjust event in progress.
+        			// handle angle adjust
+             		mViewingAngle += (deltaY/mDisplayMetrics.heightPixels)*90;
+             		
+             		mTouchLastHandledX = currentX;
+             		mTouchLastHandledY = currentY;
+        		
+        		}
+        	}
+        	else if ( (( Math.abs(overallDeltaX) > Math.abs(3*overallDeltaY) ) && // make sure the motion is mostly horizontal 
+           		 ( Math.abs(overallDeltaX) > 2*CLICK_DISTANCE_PIXELS ) && // make sure its non-trivially horizontal.
+         	   (mTouchEventInProgress==0) )||
+         	   (mTouchEventInProgress==4) )
+         	{
+         		mTouchEventInProgress = 4; // signify its a distance adjust event in progress.
+        		// handle distance adjust
+        		
+            	double newScale;
+             	newScale = Math.pow(1.1, deltaX/10 );
+         		mDisplayScale = mDisplayScale* newScale ;
+         		mTouchLastHandledX = currentX;
+         		mTouchLastHandledY = currentY;
+         		
+//         		mDebugText_1 = String.format("mDisplayScale=%f newScale=%f", (float)mDisplayScale,(float)newScale);
+
+           	}
+
+        	
+        	
+//     		mDebugText_3 = String.format("overallDeltaX=%.1f  overallDeltaY=%.1f  ratio=%.1f",overallDeltaX, overallDeltaY, (overallDeltaY==0)?(float)1000:overallDeltaX/overallDeltaY );
+//     		mDebugText_4 = String.format("mTouchEventInProgress=%d  mHandle1TouchEventsCount=%d mAccelEventsCount=%d",mTouchEventInProgress, mHandle1TouchEventsCount, mAccelEventsCount);
+
         
+        }
+        
+		/**
+		 * Display the current viewing angle.
+		 * 
+		 * @param canvas    The canvas upon which the viewing angle is drawn.
+		 */
+		private void displayDebugInformation(Canvas canvas)
+		{
+			if ( mDebugText_1 != null )
+			{
+				canvas.drawText(mDebugText_1, 0,
+						mDisplayMetrics.heightPixels - 12, mAnglePaint);
+			}
+			if ( mDebugText_2 != null )
+			{
+				canvas.drawText(mDebugText_2, 0,
+						mDisplayMetrics.heightPixels - 22, mAnglePaint);
+			}
+			if ( mDebugText_3 != null )
+			{
+				canvas.drawText(mDebugText_3, 0,
+						mDisplayMetrics.heightPixels - 32, mAnglePaint);
+			}
+			if ( mDebugText_4 != null )
+			{
+				canvas.drawText(mDebugText_4, 0,
+						mDisplayMetrics.heightPixels - 42, mAnglePaint);
+			}
+		}
+       
         
         /**
          * Handles a quick screen tap to select a new origin

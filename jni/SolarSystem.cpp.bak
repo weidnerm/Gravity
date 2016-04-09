@@ -56,7 +56,7 @@ SolarSystem::SolarSystem( void )
    m_objects[ m_numObjects++ ] = new GravityObject((char*)"Moon"          ,   7.35E+22 ,      3.8400E+08,      1043.81  ,    5.14     ,      0              ,       0        , m_objects[ m_numObjects-1 ]);
    
    m_objects[ m_numObjects++ ] = new GravityObject((char*)"Mars"          ,  6.419E+23 ,      2.0645E+11,     26527.81  ,    1.85     ,    286.462          ,     49.578     );
-//   m_objects[ m_numObjects++ ] = new GravityObject((char*)"Deimos"        ,   1.80E+15 ,      2.3463E+07,      1351.05  ,    27.58    ,      0              ,       0        , m_objects[ m_numObjects-1 ]);
+   m_objects[ m_numObjects++ ] = new GravityObject((char*)"Deimos"        ,   1.80E+15 ,      2.3463E+07,      1351.05  ,    27.58    ,      0              ,       0        , m_objects[ m_numObjects-1 ]);
  //m_objects[ m_numObjects++ ] = new GravityObject((char*)"Phobos"        ,   1.08E+16 ,      9.3770E+06,      2152.77  ,    26.04    ,      0              ,       0        , m_objects[ m_numObjects-2 ]);
 
 
@@ -77,15 +77,15 @@ SolarSystem::SolarSystem( void )
    m_objects[ m_numObjects++ ] = new GravityObject((char*)"Miranda"       ,  6.30E+19  ,      3.8400E+08,      3889.40 ,     90+4.22  ,       0             ,      0      , m_objects[ m_numObjects-1 ]);
    m_objects[ m_numObjects++ ] = new GravityObject((char*)"Ariel"         ,  1.27E+21  ,      1.2980E+08,      6689.77 ,     90+0.31  ,       0             ,      0      , m_objects[ m_numObjects-2 ]);
    m_objects[ m_numObjects++ ] = new GravityObject((char*)"Umbriel"       ,  1.27E+21  ,      1.9120E+08,      5517.43 ,     90+0.36  ,       0             ,      0      , m_objects[ m_numObjects-3 ]);
-//   m_objects[ m_numObjects++ ] = new GravityObject((char*)"Titania"       ,  3.49E+21  ,      4.36E+08  ,      3649.12 ,     90+0.1   ,       0             ,      0      , m_objects[ m_numObjects-4 ]);
-//   m_objects[ m_numObjects++ ] = new GravityObject((char*)"Oberon"        ,  3.03E+21  ,      5.8260E+08,      3154.49 ,     90+0.1   ,       0             ,      0      , m_objects[ m_numObjects-5 ]);
+   m_objects[ m_numObjects++ ] = new GravityObject((char*)"Titania"       ,  3.49E+21  ,      4.36E+08  ,      3649.12 ,     90+0.1   ,       0             ,      0      , m_objects[ m_numObjects-4 ]);
+   m_objects[ m_numObjects++ ] = new GravityObject((char*)"Oberon"        ,  3.03E+21  ,      5.8260E+08,      3154.49 ,     90+0.1   ,       0             ,      0      , m_objects[ m_numObjects-5 ]);
    
    
    m_objects[ m_numObjects++ ] = new GravityObject((char*)"Pluto"         , 1.320E+22  ,      4.4431E+12,      6118.54  ,   17.14     ,    113.763          ,    110.303     );
-//   m_objects[ m_numObjects++ ] = new GravityObject((char*)"Charon"        ,  1.90E+21  ,      1.9600E+07,       208.93  ,   112.78    ,      0              ,      0      , m_objects[ m_numObjects-1 ] );
+   m_objects[ m_numObjects++ ] = new GravityObject((char*)"Charon"        ,  1.90E+21  ,      1.9600E+07,       208.93  ,   112.78    ,      0              ,      0      , m_objects[ m_numObjects-1 ] );
    
    m_objects[ m_numObjects++ ] = new GravityObject((char*)"Neptune"       , 1.024E+26  ,      4.4879E+12,      5450.48  ,    1.769    ,    273.249          ,    131.721 );
-//   m_objects[ m_numObjects++ ] = new GravityObject((char*)"Triton"        ,  2.15E+22  ,      3.5470E+08,      4389.68  ,    156.8    ,       0             ,       0     , m_objects[ m_numObjects-1 ]);
+   m_objects[ m_numObjects++ ] = new GravityObject((char*)"Triton"        ,  2.15E+22  ,      3.5470E+08,      4389.68  ,    156.8    ,       0             ,       0     , m_objects[ m_numObjects-1 ]);
 
 
 
