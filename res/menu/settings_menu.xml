@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/settings"
+          android:icon="@drawable/actionsettings"
+          android:title="@string/enable_3d" />
+    <item android:id="@+id/viewlist"
+          android:icon="@drawable/collectionsviewaslist"
+          android:title="@string/no_green" />
+    <item android:id="@+id/about"
+          android:icon="@drawable/actionabout"
+          android:title="@string/accel_enable" />
+</menu>

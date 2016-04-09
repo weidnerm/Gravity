@@ -1,7 +1,10 @@
 package com.example.Gravity;
 
+
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
@@ -12,7 +15,11 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.util.DisplayMetrics;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.View;
@@ -163,12 +170,10 @@ public class Gravity extends Activity {
 	double mViewingAngle = 45; // degrees
 	int mTouchCount = 0;
 	public String mDebugText_1,mDebugText_2,mDebugText_3,mDebugText_4 = null;
-	public final int DISPLAY_MODE_2D = 0;
-	public final int DISPLAY_MODE_3D = 1;
-	public int mDisplayMode = DISPLAY_MODE_2D;
 	public double mFocalPointDistanceMain3DAxis = 1600;  // distance in display pixels to the observer
 	public double mFocalPointDistance3DEyeSeparation = mFocalPointDistanceMain3DAxis/10;
-	public int mIncludeGreenColor = 1;  // allows green to be excluded for displays that bleed green into red.
+	public boolean mExcludeGreenColor = false;  // allows green to be excluded for displays that bleed green into red.
+    public boolean mAccelEnabled = true;
     
 	/** Called when the activity is first created. */
 	@Override
@@ -186,14 +191,43 @@ public class Gravity extends Activity {
 
 		// instantiate our simulation view and set it as the activity's content
 		mGravityView = new GravityView(this);
-//		mGravityView.setBottom(0);
 		setContentView(mGravityView);
 		mDisplayOriginOffset = new DisplayPoint();
 		
 	}
 
-	
-	
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+    	boolean result = super.onCreateOptionsMenu(menu);
+    	
+    	MenuInflater inflater = getMenuInflater();
+    	inflater.inflate(R.menu.options_menu, menu);
+
+        // pref menu item
+        Intent prefsIntent = new Intent(getApplicationContext(),
+                GravityPreferencesActivity.class);
+
+        MenuItem preferences = menu.findItem(R.id.settings);
+        preferences.setIntent(prefsIntent);    	
+    	
+    	return result;
+    }
+    
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+//            case R.id.settings:
+//            	return true;
+            case R.id.viewlist:
+                return true;
+            case R.id.about:
+//                showHelp();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }	
 
 	/**
 	 * @author emw010
@@ -217,10 +251,9 @@ public class Gravity extends Activity {
         final int CLICK_DISTANCE_PIXELS=20;
         private int mTouchEventInProgress = 0;
         private int mHandle1TouchEventsCount = 0;
-        private int mAccelEventsCount = 0;
         private float mLastAccelerometerX,mLastAccelerometerY,mLastAccelerometerZ = 10000; // some invalid value
-        private Paint mLeft3DPaint,mRight3DPaint;
-		private Paint mLeft3DShadowPaint,mRight3DShadowPaint;
+        public Paint mLeft3DPaint,mRight3DPaint;
+		public Paint mLeft3DShadowPaint,mRight3DShadowPaint;
         
  
 		/**
@@ -238,8 +271,6 @@ public class Gravity extends Activity {
 			}
 
 			mDisplayMetrics = new DisplayMetrics();
-//			getWindowManager().getDefaultDisplay().getMetrics(mDisplayMetrics);
-////			mDisplayMetrics =getResources().getDisplayMetrics();
 			mDisplayMetrics.widthPixels = getWidth();
 			mDisplayMetrics.heightPixels = getHeight();
 			
@@ -266,31 +297,19 @@ public class Gravity extends Activity {
 			mLeft3DPaint.setColor(0xffff0000);
 
 			mRight3DPaint = new Paint();
-			if ( mIncludeGreenColor == 1 )
-			{
-				mRight3DPaint.setColor(0xff00ffff);
-			}
-			else
-			{
-				mRight3DPaint.setColor(0xff0000ff);
-			}
+			mRight3DPaint.setColor(0xff00ffff);
 			
 			// set up paint for the dashed line drawn to plane of ecliptic
 			mLeft3DShadowPaint = new Paint();
 			mLeft3DShadowPaint.setColor(0xff800000);
+			
 			DashPathEffect dashPath = new DashPathEffect(new float[] { 2, 2 }, 1);
 			mLeft3DShadowPaint.setPathEffect(dashPath);
 			mLeft3DShadowPaint.setStrokeWidth(1);
 
 			mRight3DShadowPaint = new Paint();
-			if ( mIncludeGreenColor == 1 )
-			{
-				mRight3DShadowPaint.setColor(0xff008080);
-			}
-			else
-			{
-				mRight3DShadowPaint.setColor(0xff000080);
-			}
+			mRight3DShadowPaint.setColor(0xff008080);
+
 			dashPath = new DashPathEffect(new float[] { 2, 2 }, 1);
 			mRight3DShadowPaint.setPathEffect(dashPath);
 			mRight3DShadowPaint.setStrokeWidth(1);
@@ -340,6 +359,20 @@ public class Gravity extends Activity {
 
 			int objectIndex;
 
+			
+			
+			if ( mExcludeGreenColor )
+			{
+				mRight3DPaint.setColor(0xff0000ff);
+			}
+			else
+			{
+				mRight3DPaint.setColor(0xff00ffff);
+			}
+			
+			
+			
+			
 			// for(objectIndex=0 ; objectIndex<numObjects ; objectIndex++)
 			for (objectIndex = mNumGravityObjects - 1; objectIndex >= 0; objectIndex--) 
 			{
@@ -358,11 +391,6 @@ public class Gravity extends Activity {
 					// Draw the textual name of the object.
 					canvas.drawText(myGravityObjectNames[objectIndex],objectXRightEye + 2, objectY - 2, mRight3DPaint);
 	
-//					if ( objectIndex == 1)
-//					{
-//						mDebugText_3 = String.format("objectX=%.1f objectY=%.1f objectXRightEye=%.1f ", (float)objectX,(float)objectY,(float)objectXRightEye);
-//					}
-					
 					final int planetRadius = 2;
 					// Draw the Planet
 					mPlanetRect.left = objectX - planetRadius;
@@ -578,13 +606,9 @@ public class Gravity extends Activity {
             
 //     		mDebugText_4 = String.format("mAccelerometerY=%.1f  mAccelerometerZ=%.1f mAccelEventsCount=%d",mAccelerometerY, mAccelerometerZ, mAccelEventsCount);
             
-            if ( ( mLastAccelerometerX != mAccelerometerX) ||
-                ( mLastAccelerometerY != mAccelerometerY) ||
-            	( mLastAccelerometerZ != mAccelerometerZ) )
+            if ( mAccelEnabled )
             {
             	mViewingAngle = 90 - Math.toDegrees( Math.atan2(mAccelerometerY,mAccelerometerZ) ) ;
-                mAccelEventsCount += 1;
-//         		mDebugText_4 = String.format("mTouchEventInProgress=%d  mHandle1TouchEventsCount=%d mAccelEventsCount=%d",mTouchEventInProgress, mHandle1TouchEventsCount, mAccelEventsCount);
             }
 
      		mLastAccelerometerX = mAccelerometerX;
@@ -627,12 +651,13 @@ public class Gravity extends Activity {
                      break;
                 case MotionEvent.ACTION_UP:
                     mOldDisplayScale = 1;
-                	if ( ( Math.abs(x) < 2*CLICK_DISTANCE_PIXELS ) &&
-                			( Math.abs(y) < 2*CLICK_DISTANCE_PIXELS ) )
-                 	{
-                		mDisplayMode = mDisplayMode==DISPLAY_MODE_2D ? DISPLAY_MODE_3D : DISPLAY_MODE_2D;// We have tap of the 2d/3d button.
-                 	}
-                	else if ( ( Math.abs(mTouchX-x) < CLICK_DISTANCE_PIXELS ) &&
+//                	if ( ( Math.abs(x) < 2*CLICK_DISTANCE_PIXELS ) &&
+//                			( Math.abs(y) < 2*CLICK_DISTANCE_PIXELS ) )
+//                 	{
+//                		mDisplayMode = mDisplayMode==DISPLAY_MODE_2D ? DISPLAY_MODE_3D : DISPLAY_MODE_2D;// We have tap of the 2d/3d button.
+//                 	}
+//                	else 
+                		if ( ( Math.abs(mTouchX-x) < CLICK_DISTANCE_PIXELS ) &&
                 			( Math.abs(mTouchY-y) < CLICK_DISTANCE_PIXELS ) )
                  	{
                 		// We have a release that was near by a press.  its a non-slide tap.
@@ -642,14 +667,6 @@ public class Gravity extends Activity {
                 	
                 	
                 	
-//                	else if ( (mTouchX-x) > 50  )
-//                	{
-//                		mDisplayScale *= 1.5;
-//                	}
-//                	else if ( (mTouchX-x) < -50  )
-//                	{
-//                		mDisplayScale /= 1.5;
-//                	}
                 	mTouchEventInProgress = 0;
 //             		mDebugText_4 = String.format("mTouchEventInProgress=%d  mHandle1TouchEventsCount=%d",mTouchEventInProgress, mHandle1TouchEventsCount);
                     break;
@@ -943,41 +960,20 @@ public class Gravity extends Activity {
 		VectorPoint currentVectorPoint;
 		double eyeSeparation;
 
-		if ( mDisplayMode == DISPLAY_MODE_2D)
+		boolean mode_3d = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("enable_3d", false)  ;
+		if ( mode_3d )
 		{
-			eyeSeparation = 0;
+			eyeSeparation = mFocalPointDistance3DEyeSeparation;
+			mExcludeGreenColor = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("no_green", false)  ;
 		}
 		else
 		{
-			eyeSeparation = mFocalPointDistance3DEyeSeparation;
+			eyeSeparation = 0;
+			mExcludeGreenColor = false; // force cyan if not 3d.
 		}
-			
-//			for (index = 0; index < mNumGravityObjects; index++) {
-//				// Save the historical values.
-//				for (tempIndex = 0; tempIndex < myGravityObjectCoordHistoryDepth; tempIndex++) {
-//					// Compute the projected ccordinates based on the viewing angle.
-//					xRot = myGravityObjectVectorHistory[index][tempIndex].x;
-//					yRot = myGravityObjectVectorHistory[index][tempIndex].y * cosOfAngle
-//							- myGravityObjectVectorHistory[index][tempIndex].z * sinOfAngle;
-//	
-//					// Scale it down so that it fits our display.
-//					xRot /= mDisplayScale; // One AU is about 149 pixels.
-//					yRot /= -mDisplayScale; // One AU is about 149 pixels.
-//	
-//					myGravityObjectCoordHistory[index][tempIndex].x = (int) xRot;
-//					myGravityObjectCoordHistory[index][tempIndex].y = (int) yRot;
-//				}
-//	
-//				xRot = myGravityObjectVectorHistory[index][0].x;
-//				yRot = myGravityObjectVectorHistory[index][0].y * cosOfAngle;
-//	
-//				xRot /= mDisplayScale; // One AU is about 149 pixels.
-//				yRot /= -mDisplayScale; // One AU is about 149 pixels.
-//	
-//				myGravityObjectShadow[index].x = (int) xRot;
-//				myGravityObjectShadow[index].y = (int) yRot;
-//			}
-		
+
+		mAccelEnabled = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("enable_accel_tilt", false)  ;
+				
 		for (index = 0; index < mNumGravityObjects; index++) 
 		{
 			// Save the historical values.
